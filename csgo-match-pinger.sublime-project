@@ -4,5 +4,18 @@
 		{
 			"path": "."
 		}
-	]
+	],
+	"settings":
+	{
+		"debug.configurations":
+		[
+			{
+				"name": "Launch via node",
+				"type": "node",
+				"request": "launch",
+				"cwd": "${workspaceFolder}",
+				"program": "${workspaceFolder}/src/index.js"
+			}
+		]
+	}
 }
