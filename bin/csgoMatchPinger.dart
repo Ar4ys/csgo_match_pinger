@@ -31,28 +31,11 @@ void _main(List<String> arguments) async {
   if (!Platform.isWindows) {
     print('Sorry, only for Windows');
   }
-  print('To exit press Ctrl + C');
+  print(
+    'To exit press Ctrl + C'
+  );
 
-  final tokenFile = File(tokenPath);
-  if (await tokenFile.exists()) {
-    token = await tokenFile.readAsString();
-  } else {
-    stdout.write('Enter passcode: ');
-    final passcode = stdin.readLineSync(retainNewlines: true);
-    try {
-      final response = await dio.get('/token/$passcode');
-      final token = jsonDecode(response.toString())['token'];
-      await tokenFile.writeAsString(token);
-    } on DioError catch(error) {
-      final responseData = error.response.toString();
-      final reason = jsonDecode(responseData)['reason'];
-      print(reason);
-      pauseExit();
-    } catch (e) {
-      print(e);
-      pauseExit();
-    }
-  }
+  await retrieveToken();
 
   final file = File(csgoLogPath);
   await file
@@ -96,6 +79,29 @@ void _main(List<String> arguments) async {
           }
         });
     });
+}
+
+Future<void> retrieveToken() async {
+  final tokenFile = File(tokenPath);
+  if (await tokenFile.exists()) {
+    token = await tokenFile.readAsString();
+  } else {
+    stdout.write('Enter passcode: ');
+    final passcode = stdin.readLineSync(retainNewlines: true);
+    try {
+      final response = await dio.get('/token/$passcode');
+      final token = jsonDecode(response.toString())['token'];
+      await tokenFile.writeAsString(token);
+    } on DioError catch(error) {
+      final responseData = error.response.toString();
+      final reason = jsonDecode(responseData)['reason'];
+      print(reason);
+      pauseExit();
+    } catch (e) {
+      print(e);
+      pauseExit();
+    }
+  }
 }
 
 void globalErrorHandler(Object error, StackTrace stackTrace) async {
