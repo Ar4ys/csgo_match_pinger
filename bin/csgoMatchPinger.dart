@@ -8,9 +8,11 @@ import 'package:path/path.dart' as p;
 import 'package:dio/dio.dart' show Dio, DioError;
 import 'package:pedantic/pedantic.dart';
 
-//const csgoLogPath = 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\csgo\\console.log';
-const csgoLogPath = 'C:/test/test.txt';
-const csgoCfgPath = 'C:/test/test.cfg';
+const csgoPath = 
+  'C:/Program Files (x86)/Steam/'
+  'steamapps/common/Counter-Strike Global Offensive/csgo/';
+final csgoLogPath = p.join(csgoPath, 'console.log');
+final csgoCfgPath = p.join(csgoPath, 'cfg/csgoPinger.cfg');
 final tokenPath = p.join(Platform.environment['UserProfile'], 'appdata/local/csgo-pinger');
 
 final matchReadyRegex = RegExp(r'ready');
@@ -60,13 +62,14 @@ void _main(List<String> arguments) async {
       (e) async {
         final config = File(csgoCfgPath);
         await config.create().catchError((_) {});
-        await config.writeAsString('startPinger');
+        await config.writeAsString('start_pinger');
         await waitForCSGO();
       },
       onError: (e) async {
         print(
-          'Cannot remove csgo log file. '
-          'Looks like csgo is alredy blocked it'
+          'Cannot remove csgo log file.\n'
+          'Looks like csgo is alredy blocked it\n'
+          //'To start pinger execute "start_pinger" command in CSGO console'
         );
 
         final lineCount = (await File(csgoLogPath).readAsLines()).length;
@@ -95,7 +98,8 @@ void _main(List<String> arguments) async {
     });
 }
 
-void globalErrorHandler(Object error, StackTrace stackTrace) {
+void globalErrorHandler(Object error, StackTrace stackTrace) async {
+  await clearConfig();
   final timeRegexp = RegExp(r'T(.+)\.');
   final prettyStackTrace = Trace.format(stackTrace);
   final date = DateTime.now().toIso8601String();
@@ -114,6 +118,18 @@ Future<void> waitForCSGO() async {
   );
 }
 
+Future<void> clearConfig() async {
+  final config = File(csgoCfgPath);
+  try {
+    await config.writeAsString('');
+  } catch (_) {
+    print(
+      'Unable to clear csgo-pinger config file.\n'
+      'Make sure to clear it yourself, if you wont start this app again.'
+    );
+  }
+}
+
 typedef _parser = Future<Iterable<String>> Function(String path);
 
 _parser createCahngesParser([ int lastLine = 0 ]) {
@@ -126,7 +142,8 @@ _parser createCahngesParser([ int lastLine = 0 ]) {
   };
 }
 
-void pauseExit() {
+void pauseExit() async {
+  await clearConfig();
   print('Press any key to exit...');
   stdin.echoMode = false;
   stdin.lineMode = false;

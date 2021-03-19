@@ -14,5 +14,6 @@ dependencies:
   path: ^1.8.0
   stack_trace: ^1.10.0
   watcher: ^1.0.0
+  win32: ^2.0.4
 dev_dependencies: 
   pedantic: ^1.11.0
