@@ -12,7 +12,8 @@ const csgoPath =
   'C:/Program Files (x86)/Steam/'
   'steamapps/common/Counter-Strike Global Offensive/csgo/';
 final csgoLogPath = p.join(csgoPath, 'console.log');
-final csgoCfgPath = p.join(csgoPath, 'cfg/csgoPinger.cfg');
+final csgoCfgPath = p.join(csgoPath, 'cfg/pinger.cfg');
+final csgoAutoExecPath = p.join(csgoPath, 'cfg/autoexec.cfg');
 final tokenPath = p.join(Platform.environment['UserProfile'], 'appdata/local/csgo-pinger');
 
 final matchReadyRegex = RegExp(r'ready');
@@ -43,6 +44,7 @@ void _main(List<String> arguments) async {
     .then((exists) async => exists ? await file.delete() : Future.value())
     .then(
       (e) async {
+        await patchAutoExec();
         final config = File(csgoCfgPath);
         await config.create().catchError((_) {});
         await config.writeAsString('start_pinger');
@@ -103,6 +105,23 @@ Future<void> retrieveToken() async {
     }
   }
 }
+
+Future<void> patchAutoExec() async {
+  final autoexec = File(csgoAutoExecPath);
+  if (await autoexec.exists()) {
+    try {
+      final content = await autoexec.readAsString();
+      if (!content.contains("alias 'start_pinger'")) {
+        await autoexec.writeAsString("alias 'start_pinger' 'exec pinger.cfg'");
+      }
+    } catch (e) {
+      print("Unable to check/patch autoexec.cfg, 'start_pinger' may not work");
+    }
+  } else {
+    await autoexec.writeAsString("alias 'start_pinger' 'exec pinger.cfg'");
+  }
+}
+  
 
 void globalErrorHandler(Object error, StackTrace stackTrace) async {
   await clearConfig();
