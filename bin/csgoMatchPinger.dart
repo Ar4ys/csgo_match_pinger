@@ -30,13 +30,15 @@ void main(List<String> arguments) =>
 var getChanges = createCahngesParser();
 
 void _main(List<String> arguments) async {
+  ProcessSignal.sigint.watch().listen((_) async {
+    final isConfigCleared = await clearConfig();
+    _exit(paused: !isConfigCleared);
+  });
+
   if (!Platform.isWindows) {
     print('Sorry, only for Windows');
   }
-  print(
-    'To exit press Ctrl + C'
-  );
-
+  print('To exit press Ctrl + C');
   await retrieveToken();
 
   final file = File(csgoLogPath);
@@ -107,10 +109,12 @@ Future<void> retrieveToken() async {
       final responseData = error.response.toString();
       final reason = jsonDecode(responseData)['reason'];
       print(reason);
-      pauseExit();
+      await clearConfig();
+      _exit(paused: true);
     } catch (e) {
       print(e);
-      pauseExit();
+      await clearConfig();
+      _exit(paused: true);
     }
   }
   print('Token successfuly retrieved');
@@ -121,7 +125,7 @@ Future<void> runCSGO() async =>
 
 Future<void> patchAutoExec() async {
   const autoExecDefault = 
-    'alias start_pinger "exec pinger.cfg"\n'
+    '\nalias start_pinger "exec pinger.cfg"\n'
     'start_pinger';
 
   final autoexec = File(csgoAutoExecPath);
@@ -163,15 +167,17 @@ Future<void> waitForCSGO() async {
   );
 }
 
-Future<void> clearConfig() async {
+Future<bool> clearConfig() async {
   final config = File(csgoCfgPath);
   try {
     await config.writeAsString('');
+    return true;
   } catch (_) {
     print(
       'Unable to clear csgo-pinger config file.\n'
       'Make sure to clear it yourself, if you wont start this app again.'
     );
+    return false;
   }
 }
 
@@ -187,11 +193,12 @@ _parser createCahngesParser([ int lastLine = 0 ]) {
   };
 }
 
-void pauseExit() async {
-  await clearConfig();
-  print('Press any key to exit...');
-  stdin.echoMode = false;
-  stdin.lineMode = false;
-  stdin.readByteSync();
-  exit(0);
+void _exit({ int code = 0, bool paused = false }) {
+  if (paused) {
+    print('Press any key to exit...');
+    stdin.echoMode = false;
+    stdin.lineMode = false;
+    stdin.readByteSync();
+  }
+  exit(code);
 }
