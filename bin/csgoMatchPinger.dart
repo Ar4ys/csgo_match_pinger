@@ -129,7 +129,7 @@ Future<void> patchAutoExec() async {
     try {
       final content = await autoexec.readAsString();
       if (!content.contains('alias start_pinger')) {
-        await autoexec.writeAsString(autoExecDefault);
+        await autoexec.writeAsString(autoExecDefault, mode: FileMode.append);
       }
     } catch (e) {
       print(
