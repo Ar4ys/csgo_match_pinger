@@ -66,6 +66,7 @@ void _main(List<String> arguments) async {
         getChanges = createCahngesParser(lineCount);
       })
     .then((_) async {
+      exitOnCSGOClosed();
       final watcher = PollingDirectoryWatcher(
         p.dirname(csgoLogPath),
         pollingDelay: Duration(milliseconds: 100)
@@ -118,6 +119,17 @@ Future<void> retrieveToken() async {
     }
   }
   print('Token successfuly retrieved');
+}
+
+void exitOnCSGOClosed() {
+  final timeout = Duration(milliseconds: 500);
+  Timer.periodic(timeout, (_) async {
+    final logFile = File(csgoLogPath);
+    try {
+      await logFile.delete();
+      _exit();
+    } catch(_) {}
+  });
 }
 
 Future<void> runCSGO() async =>
