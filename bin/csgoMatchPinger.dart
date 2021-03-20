@@ -16,12 +16,13 @@ final csgoCfgPath = p.join(csgoPath, 'cfg/pinger.cfg');
 final csgoAutoExecPath = p.join(csgoPath, 'cfg/autoexec.cfg');
 final tokenPath = p.join(Platform.environment['UserProfile'], 'appdata/local/csgo-pinger');
 
-final matchReadyRegex = RegExp(r'ready');
-final matchClosed = RegExp(r'closed');
+final matchReadyRegex = RegExp(r'Received Steam datagram .+ match_id=.+');
+final matchClosed = RegExp(r'SDR server .+ closed by peer');
 final dio = Dio()
   ..options.baseUrl = 'http://localhost:6860';
 
 String token;
+bool isMatchFounded = false;
 
 void main(List<String> arguments) =>
   runZonedGuarded(() => _main(arguments), globalErrorHandler);
@@ -47,7 +48,9 @@ void _main(List<String> arguments) async {
         await patchAutoExec();
         final config = File(csgoCfgPath);
         await config.create().catchError((_) {});
-        await config.writeAsString('start_pinger');
+        await config.writeAsString('con_logfile console.log');
+        print('Starting CSGO');
+        await runCSGO();
         await waitForCSGO();
       },
       onError: (e) async {
@@ -61,18 +64,24 @@ void _main(List<String> arguments) async {
         getChanges = createCahngesParser(lineCount);
       })
     .then((_) async {
-      final watcher = DirectoryWatcher(p.dirname(csgoLogPath));
+      final watcher = PollingDirectoryWatcher(
+        p.dirname(csgoLogPath),
+        pollingDelay: Duration(milliseconds: 100)
+      );
+      
       watcher.events
         .where((WatchEvent event) =>
           event.type == ChangeType.MODIFY && p.equals(csgoLogPath, event.path))
         .listen((WatchEvent event) async {
           for (final line in await getChanges(event.path)) {
             if (matchReadyRegex.hasMatch(line)) {
+              isMatchFounded = true;
               unawaited(dio.post('/message', data: jsonEncode({
                 'type': 'foundMatch',
                 'token': token
               })));
-            } else if (matchClosed.hasMatch(line)) {
+            } else if (matchClosed.hasMatch(line) && isMatchFounded) {
+              isMatchFounded = false;
               unawaited(dio.post('/message', data: jsonEncode({
                 'type': 'missedMatch',
                 'token': token
@@ -80,7 +89,7 @@ void _main(List<String> arguments) async {
             }
           }
         });
-    });
+    }).then((_) => print('Pinger initialized'));
 }
 
 Future<void> retrieveToken() async {
@@ -104,21 +113,32 @@ Future<void> retrieveToken() async {
       pauseExit();
     }
   }
+  print('Token successfuly retrieved');
 }
 
+Future<void> runCSGO() async =>
+  await Process.run('explorer', ['steam://rungameid/730']);
+
 Future<void> patchAutoExec() async {
+  const autoExecDefault = 
+    'alias start_pinger "exec pinger.cfg"\n'
+    'start_pinger';
+
   final autoexec = File(csgoAutoExecPath);
   if (await autoexec.exists()) {
     try {
       final content = await autoexec.readAsString();
-      if (!content.contains("alias 'start_pinger'")) {
-        await autoexec.writeAsString("alias 'start_pinger' 'exec pinger.cfg'");
+      if (!content.contains('alias start_pinger')) {
+        await autoexec.writeAsString(autoExecDefault);
       }
     } catch (e) {
-      print("Unable to check/patch autoexec.cfg, 'start_pinger' may not work");
+      print(
+        'Unable to check/patch autoexec.cfg, '
+        "command 'start_pinger' may not work"
+      );
     }
   } else {
-    await autoexec.writeAsString("alias 'start_pinger' 'exec pinger.cfg'");
+    await autoexec.writeAsString(autoExecDefault);
   }
 }
   
