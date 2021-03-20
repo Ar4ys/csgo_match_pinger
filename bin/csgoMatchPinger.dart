@@ -18,8 +18,7 @@ final tokenPath = p.join(Platform.environment['UserProfile'], 'appdata/local/csg
 
 final matchReadyRegex = RegExp(r'Received Steam datagram .+ match_id=.+');
 final matchClosed = RegExp(r'SDR server .+ closed by peer');
-final dio = Dio()
-  ..options.baseUrl = 'http://localhost:6860';
+final dio = Dio();
 
 String token;
 bool isMatchFounded = false;
@@ -38,6 +37,11 @@ void _main(List<String> arguments) async {
   if (!Platform.isWindows) {
     print('Sorry, only for Windows');
   }
+
+  dio.options.baseUrl = arguments.isNotEmpty && arguments.first == 'test'
+    ? 'http://localhost:6860'
+    : 'http://csgo-pinger.ddns.net:6860';
+
   print('To exit press Ctrl + C');
   await retrieveToken();
 
@@ -67,6 +71,7 @@ void _main(List<String> arguments) async {
       })
     .then((_) async {
       exitOnCSGOClosed();
+      unawaited(clearConfig());
       final watcher = PollingDirectoryWatcher(
         p.dirname(csgoLogPath),
         pollingDelay: Duration(milliseconds: 100)
